@@ -1,0 +1,313 @@
+---
+title: "Visualisation project"
+author: "Shashi Bhushan Singh"
+date: "2022-11-02"
+output:
+  word_document:
+    fig_width: 8
+    highlight: null
+  html_document:
+    df_print: paged
+  pdf_document: 
+    fig_width: 7
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+## Introduction:
+
+The Dataset used for this project is from the "Corporate Environmental Impact**" .** It contain the the data about environmental impact of company to the different factor of environment like water, health etc. . For this project I have used the 2018 data from this dataset . The main aim is to analyze pollution level of each industry and compare there influence on different factor environment.
+
+### **Data description:**
+
+-   The dataset I have choosen has 16 columns and 1754 rows.
+
+-   for analysis I have created three column :
+
+    -   Industry_code: Based on International Standard Industrial Classification Revision 3.1 (ISIC)
+
+    -   pollution level : contain categorical value according to environment intensity like low for below 10% environment intensity etc.
+
+    -   Industry_category : to broadly define the Industry to which any company belong like finance, electricity generation etc.
+
+```{r, warning=FALSE}
+library(ggplot2)
+library(ggpmisc)
+library(dplyr)
+library(tidyverse)
+theme_update(plot.title = element_text(hjust = 0.5, size=10))
+options(scipen =100000000) # to get the number in numeric term
+```
+
+```{r, warning=FALSE}
+# Data cleaning and manipulation
+
+data=read.csv("final_raw_sample_0_percent.csv")
+
+data1=data[data$Year=="2018",] # get the data for 2018
+
+data1=subset(data1, select=-c(Total.Environmental.Intensity..Operating.Income.))
+
+
+
+data1$Total.Environmental.Intensity..Revenue.=as.numeric(gsub("%","",data1$Total.Environmental.Intensity..Revenue.))
+
+
+data1$Total.Environmental.Cost=abs(as.numeric(gsub("\\(|\\)|,","",data1$Total.Environmental.Cost)))
+
+
+data1$Working.Capacity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Working.Capacity)))
+
+
+
+data1$Fish.Production.Capacity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Fish.Production.Capacity)))
+
+data1$Crop.Production.Capacity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Crop.Production.Capacity)))
+
+data1$Meat.Production.Capacity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Meat.Production.Capacity)))
+
+data1$Biodiversity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Biodiversity)))
+
+data1$Abiotic.Resources=abs(as.numeric(gsub("\\(|\\)|,","",data1$Abiotic.Resources)))
+
+data1$Water.production.capacity..Drinking.water...Irrigation.Water.=abs(as.numeric(gsub("\\(|\\)|,","",data1$Water.production.capacity..Drinking.water...Irrigation.Water.)))
+
+data1$Wood.Production.Capacity=abs(as.numeric(gsub("\\(|\\)|,","",data1$Wood.Production.Capacity)))
+
+data1=data1 %>% drop_na(c(Wood.Production.Capacity,Abiotic.Resources) )
+
+
+
+data1$revenue=abs(data1$Total.Environmental.Cost/data1$Total.Environmental.Intensity..Revenue.)*100
+data1=data1 %>% relocate(revenue, .before = Total.Environmental.Intensity..Revenue.)
+
+data1$Total.Environmental.Cost=data1$Total.Environmental.Cost* sign(data1$Total.Environmental.Intensity..Revenue.)
+
+
+data1$Industry_code=as.numeric(gsub(".*?([0-9]+).*", "\\1", data1$Industry..Exiobase.))
+data1=data1 %>% relocate(Industry_code,.after=Industry..Exiobase.)
+
+# adding column Industry_category into the data1
+
+data1= data1 %>% mutate(Industry_category=case_when(
+  Industry_code %in% c(5:8) ~ "Electricity generation",
+  Industry_code %in%  c(9:14) ~ "Mineral extraction",
+  Industry_code %in%  c(15:25,36) ~ "Manufacturing goods",
+  Industry_code %in%  c(4,26:29) ~ "Heavy Industry",
+  Industry_code %in%  c(30:33) ~ "Electrical/Electronics",
+  Industry_code %in%  c(34) ~ "Vehicle",
+  Industry_code %in%  c(41) ~ "Water Industry",
+  Industry_code %in%  c(45,70) ~ "construction", 
+  Industry_code %in%  c(51:53,71) ~ "trade",
+  Industry_code %in%  c(59:63) ~ "Transportation",
+  Industry_code %in%  c(65:67) ~ "Finance",
+  Industry_code %in%  c(64,72:93) ~ "Service sector and communication",
+  Industry_code %in%  c(2,95,96) ~ "Agri and forestry"
+  
+  
+  ) )
+
+
+
+# adding pollution_level
+
+data1=data1%>% mutate(pollution_level= case_when(
+  ( Total.Environmental.Intensity..Revenue.>= -10) & (Total.Environmental.Intensity..Revenue.< 0) ~ 'low',
+   (Total.Environmental.Intensity..Revenue.>= -50) & (Total.Environmental.Intensity..Revenue.< -10)  ~ 'medium',
+   (Total.Environmental.Intensity..Revenue.>= -100) & (Total.Environmental.Intensity..Revenue.< -50) ~ 'high',
+  ( Total.Environmental.Intensity..Revenue.>= -1000) & (Total.Environmental.Intensity..Revenue.< -100) ~ 'very high',
+   Total.Environmental.Intensity..Revenue.< -1000 ~ 'Extreme',
+   Total.Environmental.Intensity..Revenue. >=0 ~ 'positive'
+  
+  
+))
+
+
+data1$pollution_level=factor(data1$pollution_level, levels=c("Extreme","very high","high","medium","low","positive"))
+
+
+```
+
+```{r, warning=FALSE}
+# Country wise data
+country_df= data1 %>% group_by(Country,Industry..Exiobase.,Industry_code, Industry_category,pollution_level) %>% summarise(
+  
+  total_reve=sum(revenue),
+                                                                          total.Environment_cost=sum(Total.Environmental.Cost),
+                                                                          Working.Capacity=sum(Working.Capacity),
+                                                                          Fish.Production.Capacity=sum(Fish.Production.Capacity),
+                                                                          Crop.Production.Capacity=sum(Crop.Production.Capacity),
+                                                                          Meat.Production.Capacity=sum(Meat.Production.Capacity),
+                                                                          Biodiversity=sum(Biodiversity),
+                                                                          total_Abiotic.Resources=sum(Abiotic.Resources),
+                                                                          Water.production.capacity..Drinking.water...Irrigation.Water.=sum(Water.production.capacity..Drinking.water...Irrigation.Water.),
+                                                                          Wood.Production.Capacity=sum(Wood.Production.Capacity))
+
+
+```
+
+```{r, warning= FALSE}
+# Industry wise data
+
+Industry_df= data1 %>% group_by(Industry..Exiobase.,Industry_code, Industry_category,pollution_level) %>% summarize(number_of_company=n(),
+                                                                            total_reve=sum(revenue),
+                                                                   total.Environment_cost=sum(Total.Environmental.Cost),
+                                                                   Working.Capacity=sum(Working.Capacity),
+                                                                   Fish.Production.Capacity=sum(Fish.Production.Capacity),
+                                                                   Crop.Production.Capacity=sum(Crop.Production.Capacity),
+                                                                   Meat.Production.Capacity=sum(Meat.Production.Capacity),
+                                                                   Biodiversity=sum(Biodiversity),
+                                                                   total_Abiotic.Resources=sum(Abiotic.Resources),
+                                                                   Water.production.capacity..Drinking.water...Irrigation.Water.=sum(Water.production.capacity..Drinking.water...Irrigation.Water.),
+                                                                   Wood.Production.Capacity=sum(Wood.Production.Capacity) )
+
+
+
+
+```
+
+#### 
+
+```{r fig.height=5, fig.width=10}
+piedata <- data1 %>% 
+  group_by(Industry_category) %>% # Variable to be transformed
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc = `n` / sum(`n`) ) %>% 
+  arrange(perc) %>%
+  mutate(labels = scales::percent(perc))
+
+
+
+
+ggplot(piedata, aes(x = "", y = perc, fill = Industry_category)) +
+  geom_col() + geom_text(aes(x=1.58, label=labels),
+             position = position_stack(vjust=0.5),
+             show.legend = F, angle=75, size=2) +
+  coord_polar(theta = "y") +
+  scale_fill_discrete()+
+  theme_void() +ggtitle("Fig-1:  % of Industry_category representation in dataset ")+theme(plot.title = element_text(size=15))
+
+```
+
+## Data Analysis:
+
+The Table below shows the overall environmental intensity of Industry along with effect on different factor of environment in percentage of revenue represented in data.
+
+```{r}
+tot_df=data1 %>% summarise( total_reve=sum(revenue),
+                                                                          total.Environment_cost=sum(Total.Environmental.Cost),
+                                                                          Working.Capacity=sum(Working.Capacity),
+                                                                          Fish.Production.Capacity=sum(Fish.Production.Capacity),
+                                                                          Crop.Production.Capacity=sum(Crop.Production.Capacity),
+                                                                          Meat.Production.Capacity=sum(Meat.Production.Capacity),
+                                                                          Biodiversity=sum(Biodiversity),
+                                                                          total_Abiotic.Resources=sum(Abiotic.Resources),
+                                                                          Water.production.capacity..Drinking.water...Irrigation.Water.=sum(Water.production.capacity..Drinking.water...Irrigation.Water.),
+                                                                          Wood.Production.Capacity=sum(Wood.Production.Capacity))
+
+for (i in c(2:10) ){
+  tot_df[,i]=tot_df[,i]/tot_df[,1] *100
+}
+tot_df=t(tot_df)
+colnames(tot_df)="percentage Environment intensity..revenue"
+tot_df=tot_df[-1,]
+
+```
+
+```{r paged.print=TRUE}
+knitr::kable(tot_df, format="pipe",col.names = c("percentage Environment intensity..revenue"))
+ 
+```
+
+```{r fig.height=8, fig.width=15}
+ggplot(data1)+geom_jitter(aes(revenue,Total.Environmental.Intensity..Revenue.))+facet_wrap(~pollution_level, scales="free_y", ncol=2)+ggtitle(" Fig-2: Revenue vs pollution level")+xlim(0,100000000000)+theme(plot.title = element_text(size=30))
+
+```
+
+-   From fig-2, most of the industry falls under the low pollution category, but it is low revenue company which have shown higher variance in pollution level from being the extreme polluter to positive one. Whereas most higher revenue company is low or medium polluter.
+
+```{r fig.height=8, fig.width=12}
+ggplot(data1,aes(Industry_category))+
+  geom_bar(aes(fill=pollution_level))+theme(axis.text.x = element_text(angle=40, vjust=1.05, hjust=1.06),                                  axis.text=element_text(size=8), plot.title = element_text(size=20))+ggtitle("Fig-3: pollution level of Industry_category")
+
+```
+
+```{r}
+for (i in c(7:13)){
+  Industry_df[,i] =Industry_df[,i]/Industry_df[,6] * 100
+}
+
+```
+
+### The Fig. below shows the on average environmetal impact of industry falling under different pollution_level.
+
+```{r fig.height=8, fig.width=15}
+Industry_df=Industry_df[order(Industry_df$Industry_category),]
+
+Industry_df$Industry_code=as.character(Industry_df$Industry_code)
+
+ggplot(Industry_df)+geom_bar(aes(Industry_code,y=abs(total.Environment_cost), fill=Industry_category), stat='Identity' )+
+  theme(axis.text.x = element_text(angle=90,vjust=0.5, hjust=1), plot.title = element_text(size=30))  +
+  ggtitle(" Fig-4: percentage of environment cost to revenue")+
+  scale_fill_discrete()+ facet_wrap(~pollution_level,ncol=2, scales="free")
+
+
+```
+
+Few takeaway from fig-3 and fig-4:
+
+-   Except trade most of the industry have shown high variability in pollution level
+
+-   on average environmetal impact of extreme polluting company is highest in case of mining industry.
+
+-   from fig-2 Electricity generation company shows quit high percentage of company belong to very high polluting category compared to other industry.
+
+## **Electrical generation company:**
+
+```{r fig.height=8, fig.width=8}
+Electricity_df=data1[data1$Industry_category=='Electricity generation',]
+
+ggplot(Electricity_df,aes(Industry..Exiobase.))+
+  geom_bar(aes(fill=pollution_level))+theme(axis.text.x = element_text(angle=40, vjust=1.05, hjust=1.06),                                  axis.text=element_text(size=8), plot.title = element_text(size=20))+ggtitle("Fig-5:pollution level of Electricity company")
+```
+
+-   the hydro electricity production Industry shows quit surprising result as we consider it as one of the most environmental friendly industry but data shows that most of them belong to medium and high pollution level and even present in extreme pollution category.
+
+```{r fig.width=6}
+
+hydro_df=data1[data1$Industry_category=="Electricity generation",]
+hydro_df=hydro_df[,c(8:16)]
+hydro.df1=hydro_df[1,]
+
+for (i in colnames(hydro_df)){
+  hydro.df1$i=sum(hydro_df$i)
+}
+
+for (i in c(2:9)){
+  hydro.df1[,i]=hydro.df1[,i]/hydro.df1[,1] *100
+}
+hydro.df1=data.frame(t(hydro.df1))
+hydro.df1$factor=rownames(hydro.df1)
+
+colnames(hydro.df1)=c("perc","factor")
+hydro.df1=hydro.df1[c(-1,-10),]
+
+
+ggplot(hydro.df1, aes(x = "", y=perc , fill = factor)) +
+  geom_col()+
+  coord_polar(theta = "y") +
+  scale_fill_discrete()+
+  theme_void() +ggtitle("Fig-6: Factor of environment affected by Electricity genration company")+theme(plot.title = element_text(size=8))
+
+```
+
+-   Electricity company have higher impact on working capacity and then on water.
