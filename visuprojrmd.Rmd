@@ -1,6 +1,10 @@
 ---
-title: "Visualisation project"
-author: "Shashi Bhushan Singh"
+title: "Corporate Impact on the Environment"
+author: 
+   - "Shashi Bhushan Singh"
+   - "MDS202235"
+
+
 date: "2022-11-02"
 output:
   word_document:
@@ -282,7 +286,7 @@ ggplot(Electricity_df,aes(Industry..Exiobase.))+
 
 -   the hydro electricity production Industry shows quit surprising result as we consider it as one of the most environmental friendly industry but data shows that most of them belong to medium and high pollution level and even present in extreme pollution category.
 
-```{r fig.width=6}
+```{r fig.width=9}
 
 hydro_df=data1[data1$Industry_category=="Electricity generation",]
 hydro_df=hydro_df[,c(8:16)]
