@@ -1,0 +1,13 @@
+name: envi_imp
+title: envi_imp
+username:
+account: shashis
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7815273
+bundleId: 6593038
+url: https://shashis.shinyapps.io/envi_imp/
+when: 1670237910.77008
+lastSyncTime: 1670237910.7701
+asMultiple: FALSE
+asStatic: FALSE
